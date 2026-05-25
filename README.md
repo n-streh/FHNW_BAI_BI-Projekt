@@ -1,0 +1,99 @@
+# FHNW BAI BI-Projekt
+
+Dieses Projekt ist eine Analyseplattform zur Bewertung von Flugrouten-Auslastung und Umsatzpotenzial. Es besteht aus einem Streamlit-Dashboard (`app.py`), einem Agenten für die Analyselogik (`agent.py`) und einem optionalen Datenextrakt, der lokal im Projekt gespeichert ist, um den Start und die Ausführung zu beschleunigen.
+
+## Besonderheit: Lokaler Datenextrakt
+
+Um ein sehr langsames Live-Query über die 54 Millionen Buchungen der Referenzdatenbank zu vermeiden, verwendet dieses Projekt einen vorberechneten Datenauszug:
+
+- `flight_data.py` enthält bereits extrahierte, bereinigte Flugdaten für die Analyse.
+- `agent.py` versucht beim Start zuerst, diesen lokalen Datenextrakt zu nutzen.
+- Dadurch startet die App deutlich schneller und ist unabhängig von schnellen Live-Queries auf dem großen DB-Server.
+
+Wenn Sie das Projekt lokal mit einer eigenen Datenbankverbindung betreiben möchten, können Sie trotzdem auf die Live-Daten zugreifen. In diesem Fall müssen Sie die Zugangsdaten an mehreren Stellen anpassen.
+
+## Anforderungen
+
+- Python 3.10 oder neuer
+- MySQL/MariaDB-Server mit der Datenbank `flughafendb_large`
+- Lokales Ollama, falls die LLM-Analyse aktiv genutzt werden soll
+
+## Installation
+
+1. Virtuelle Umgebung erstellen (empfohlen):
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+2. Abhängigkeiten installieren:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+3. Projekt-Check ausführen:
+
+```powershell
+python setup_project.py
+```
+
+## Projekt starten
+
+Starten Sie das Streamlit-Dashboard:
+
+```powershell
+streamlit run app.py
+```
+
+## Datenbankzugang lokal anpassen
+
+Wenn Sie statt des gespeicherten Datenauszugs direkt auf Ihre lokale MySQL-Datenbank zugreifen möchten, müssen Sie die Zugangsdaten in folgenden Dateien anpassen:
+
+- `agent.py`
+- `db_setup.py`
+- `extract_data.py`
+
+In allen drei Dateien sind die Variablen:
+
+- `DB_HOST`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_NAME`
+
+zu erwarten. Standardwerte im Projekt sind:
+
+- `DB_HOST = "localhost"`
+- `DB_USER = "root"`
+- `DB_PASSWORD = "Startup.6"`
+- `DB_NAME = "flughafendb_large"`
+
+Stellen Sie sicher, dass Ihr MySQL-Benutzer die Tabellen hat:
+
+- `flight`
+- `booking`
+- `airport`
+- `airplane`
+
+## Ollama
+
+Die KI-Analyse in `agent.py` verwendet die lokale Ollama-API unter `http://localhost:11434`.
+
+- Wenn Sie Ollama nutzen möchten, starten Sie es lokal und stellen Sie sicher, dass es erreichbar ist.
+- Wenn Ollama nicht verfügbar ist, fällt das Projekt auf eine regelbasierte Analyse zurück.
+
+## Datenextrakt aktualisieren
+
+Falls Sie den lokalen Datenauszug neu erzeugen möchten, nutzen Sie:
+
+```powershell
+python extract_data.py
+```
+
+Damit wird `flight_data.py` neu erstellt. Dieser Schritt benötigt eine funktionierende Verbindung zur Datenbank.
+
+## Hinweise für die Abgabe
+
+- Der lokale Datenextrakt ist bewusst Teil des Projekts, damit die Anwendung schnell und reproduzierbar läuft.
+- Die Live-Datenbankverbindung ist optional, aber dann müssen Sie die Zugangsdaten in `agent.py`, `db_setup.py` und `extract_data.py` anpassen.
