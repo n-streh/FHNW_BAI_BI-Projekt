@@ -264,6 +264,70 @@ class FlightOptimizationAgent:
             flight["revenue"] = round(passengers * price, 2)
         return flights
 
+    def _has_geo(self, flight):
+        keys = ("dep_lat", "dep_lon", "arr_lat", "arr_lon")
+        return all(flight.get(k) is not None for k in keys)
+
+    def _fetch_geo_for_flights(self, flight_ids):
+        if not flight_ids or not HAS_MYSQL:
+            return {}
+        placeholders = ",".join(["%s"] * len(flight_ids))
+        query = f"""
+            SELECT f.flight_id as id,
+                   dep.name as dep_name,
+                   arr.name as arr_name,
+                   dep_geo.latitude as dep_lat,
+                   dep_geo.longitude as dep_lon,
+                   dep_geo.country as dep_country,
+                   arr_geo.latitude as arr_lat,
+                   arr_geo.longitude as arr_lon,
+                   arr_geo.country as arr_country
+            FROM flight f
+            JOIN airport dep ON f.`from` = dep.airport_id
+            JOIN airport arr ON f.`to` = arr.airport_id
+            LEFT JOIN airport_geo dep_geo ON dep.airport_id = dep_geo.airport_id
+            LEFT JOIN airport_geo arr_geo ON arr.airport_id = arr_geo.airport_id
+            WHERE f.flight_id IN ({placeholders})
+        """
+        try:
+            conn = self.get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(query, tuple(flight_ids))
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            result = {}
+            for row in rows:
+                geo = {}
+                for key in (
+                    "dep_name", "arr_name", "dep_country", "arr_country",
+                    "dep_lat", "dep_lon", "arr_lat", "arr_lon",
+                ):
+                    if row.get(key) is not None:
+                        geo[key] = float(row[key]) if "lat" in key or "lon" in key else row[key]
+                result[row["id"]] = geo
+            return result
+        except Exception:
+            return {}
+
+    def enrich_flights_geography(self, flights):
+        """Ergaenzt Koordinaten aus Datensatz oder per DB-Lookup (airport_geo)."""
+        missing_ids = [f["id"] for f in flights if not self._has_geo(f)]
+        geo_by_id = self._fetch_geo_for_flights(missing_ids) if missing_ids else {}
+
+        for flight in flights:
+            if self._has_geo(flight):
+                continue
+            geo = geo_by_id.get(flight["id"])
+            if geo:
+                flight.update(geo)
+            elif "route" in flight and " nach " in flight["route"]:
+                dep, arr = flight["route"].split(" nach ", 1)
+                flight.setdefault("dep_name", dep.strip())
+                flight.setdefault("arr_name", arr.strip())
+
+        return flights
+
     def fetch_route_context(self, period=None):
         period = period or self.current_period
         period_data = get_period_data(period) if HAS_EXTRACTED_DATA else None

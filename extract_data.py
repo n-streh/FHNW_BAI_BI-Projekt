@@ -15,7 +15,6 @@ DB_USER = "root"
 DB_PASSWORD = "Startup.6"
 DB_NAME = "flughafendb_large"
 
-# Maximaler Extraktionszeitraum (alle Presets liegen darin)
 MASTER_START = "2015-06-01"
 MASTER_END = "2015-06-30"
 
@@ -27,11 +26,18 @@ PERIOD_DEFINITIONS = [
     ("30d", "1 Monat (Juni 2015)", "2015-06-01", "2015-06-30"),
 ]
 
-# Eine Abfrage fuer alle Fluege im Master-Zeitraum mit Buchungen
 MASTER_QUERY = """
     SELECT f.flight_id as id,
            f.flightno,
            CONCAT(dep.name, ' nach ', arr.name) as route,
+           dep.name as dep_name,
+           arr.name as arr_name,
+           MAX(dep_geo.latitude) as dep_lat,
+           MAX(dep_geo.longitude) as dep_lon,
+           MAX(dep_geo.country) as dep_country,
+           MAX(arr_geo.latitude) as arr_lat,
+           MAX(arr_geo.longitude) as arr_lon,
+           MAX(arr_geo.country) as arr_country,
            f.departure as departure_time,
            ap.capacity,
            COUNT(b.booking_id) as passenger_count,
@@ -40,6 +46,8 @@ MASTER_QUERY = """
     FROM flight f
     JOIN airport dep ON f.`from` = dep.airport_id
     JOIN airport arr ON f.`to` = arr.airport_id
+    LEFT JOIN airport_geo dep_geo ON dep.airport_id = dep_geo.airport_id
+    LEFT JOIN airport_geo arr_geo ON arr.airport_id = arr_geo.airport_id
     JOIN airplane ap ON f.airplane_id = ap.airplane_id
     INNER JOIN booking b ON b.flight_id = f.flight_id
     WHERE f.departure BETWEEN %s AND %s
@@ -48,8 +56,6 @@ MASTER_QUERY = """
 
 
 class ProgressBar:
-    """Einfacher Terminal-Fortschrittsbalken ohne Zusatzabhaengigkeiten."""
-
     def __init__(self, total, label="", width=40):
         self.total = max(total, 1)
         self.current = 0
@@ -62,7 +68,6 @@ class ProgressBar:
         pct = self.current / self.total
         filled = int(self.width * pct)
         bar = "#" * filled + "-" * (self.width - filled)
-        elapsed = time.time() - self._start
         suffix = f" | {detail}" if detail else ""
         line = f"\r{self.label} [{bar}] {self.current}/{self.total} ({pct * 100:5.1f}%){suffix}"
         sys.stdout.write(line)
@@ -86,6 +91,9 @@ def normalize_flight(row):
     row["capacity"] = int(row["capacity"])
     row["ticket_price"] = float(row["ticket_price"])
     row["load_factor"] = float(row["load_factor"])
+    for key in ("dep_lat", "dep_lon", "arr_lat", "arr_lon"):
+        if row.get(key) is not None:
+            row[key] = float(row[key])
     return row
 
 
@@ -120,21 +128,12 @@ def build_period_data(all_flights, start, end):
 
     best = sorted(in_range, key=lambda f: f["load_factor"], reverse=True)[:10]
     best_export = [
-        {
-            "id": f["id"],
-            "flightno": f["flightno"],
-            "route": f["route"],
-            "departure_time": f["departure_time"],
-            "capacity": f["capacity"],
-            "passenger_count": f["passenger_count"],
-            "load_factor": f["load_factor"],
-            "avg_price": f["ticket_price"],
-        }
+        {k: v for k, v in f.items() if k not in ("departure_date",)}
         for f in best
     ]
 
     under_export = [
-        {k: v for k, v in f.items() if k != "departure_date" and k != "load_factor"}
+        {k: v for k, v in f.items() if k not in ("departure_date", "load_factor")}
         for f in underperforming
     ]
 
@@ -171,13 +170,15 @@ def fetch_master_flights(cursor, start_date, end_date):
 
 
 def to_python_literal(obj, indent=4):
-    """Erzeugt Python-kompatiblen Literal-Text (True/False/None statt JSON)."""
     text = json.dumps(obj, indent=indent, ensure_ascii=False, default=str)
     return (
         text.replace(": true", ": True")
         .replace(": false", ": False")
         .replace(": null", ": None")
     )
+
+
+def write_flight_data(preloaded, presets):
     week = preloaded.get("7d", {})
     underperforming = week.get("underperforming", [])
     best_performers = week.get("best", [])
@@ -238,8 +239,7 @@ def get_period_data(period_key):
 
 
 def main():
-    total_steps = 3
-    overall = ProgressBar(total_steps, label="Gesamt   ")
+    overall = ProgressBar(3, label="Gesamt   ")
 
     print("=" * 60)
     print("FHNW BI-Projekt – Datenauszug (optimiert)")

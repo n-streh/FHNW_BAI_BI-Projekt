@@ -61,6 +61,12 @@ app.py  (Streamlit-Dashboard)
 
 ## 4. Dashboard-Demo (2 Min.)
 
+### Tab «Weltkarte» (Demo-Highlight)
+
+1. Interaktive **Weltkarte** mit unterbelegten Routen
+2. Farbe: rot = kritisch (&lt;25 %), orange = warnung, gelb = moderat
+3. Hover: Flugnummer, Route, Auslastung, Umsatz
+
 ### Tab «Übersicht»
 
 1. **Zeitraum wählen** (Sidebar): 1 Tag / 3 Tage / 1 Woche = sofort geladen ⚡

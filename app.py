@@ -9,6 +9,8 @@ from agent import (
     OLLAMA_TIMEOUT,
 )
 
+from route_map import build_route_map, render_map_legend
+
 try:
     from flight_data import get_period_presets
     HAS_PERIODS = True
@@ -295,7 +297,58 @@ try:
     weekly_stats = context.get("weekly_stats", {})
     weekly_avg_load = float(weekly_stats.get("avg_load_factor") or 0)
 
-    tab_overview, tab_analysis, tab_action = st.tabs(["Übersicht", "KI-Analyse", "Optimierung"])
+    tab_map, tab_overview, tab_analysis, tab_action = st.tabs(
+        ["Weltkarte", "Übersicht", "KI-Analyse", "Optimierung"]
+    )
+
+    map_flights = agent.enrich_flights_geography([dict(f) for f in flights_with_kpis])
+    top_flights_raw = context.get("best_flights", [])[:5]
+    top_map_flights = agent.enrich_flights_geography([dict(f) for f in top_flights_raw])
+
+    with tab_map:
+        st.subheader("Globale Routenanalyse")
+        st.caption(
+            "Rot/orange/gelb: unterbelegte Routen (< 40 %). "
+            "Grün gestrichelt: Top 5 bestausgelastete Flüge im Zeitraum."
+        )
+
+        st.markdown(render_map_legend(), unsafe_allow_html=True)
+        route_fig, routes_on_map, top_on_map = build_route_map(map_flights, top_map_flights)
+        st.plotly_chart(route_fig, use_container_width=True)
+
+        if routes_on_map == 0 and top_on_map == 0:
+            st.warning(
+                "Koordinaten fehlen im Datensatz. Entweder MySQL mit `airport_geo` starten "
+                "oder `python extract_data.py` erneut ausfuehren (liefert Geo-Daten mit)."
+            )
+        else:
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Unterbelegte Routen", routes_on_map)
+            m2.metric("Top-Routen", top_on_map)
+            m3.metric("Niedrigste Auslastung", f"{df['load_factor'].min():.1f} %")
+            if top_map_flights:
+                top_load = max(float(f.get("load_factor", 0)) for f in top_map_flights)
+                m4.metric("Höchste Auslastung (Top)", f"{top_load:.1f} %")
+            else:
+                m4.metric("Route mit meiste Pax", df.loc[df["passenger_count"].idxmax(), "flightno"])
+
+            with st.expander("Routen-Details"):
+                if map_flights:
+                    st.markdown("**Unterbelegte Flüge**")
+                    map_df = pd.DataFrame(map_flights)
+                    cols = [c for c in [
+                        "flightno", "route", "dep_country", "arr_country",
+                        "load_factor", "passenger_count", "revenue",
+                    ] if c in map_df.columns]
+                    st.dataframe(map_df[cols], use_container_width=True, hide_index=True)
+                if top_map_flights:
+                    st.markdown("**Top 5 Auslastung**")
+                    top_df = pd.DataFrame(top_map_flights)
+                    top_cols = [c for c in [
+                        "flightno", "route", "dep_country", "arr_country",
+                        "load_factor", "passenger_count",
+                    ] if c in top_df.columns]
+                    st.dataframe(top_df[top_cols], use_container_width=True, hide_index=True)
 
     with tab_overview:
         col1, col2, col3, col4 = st.columns(4)
