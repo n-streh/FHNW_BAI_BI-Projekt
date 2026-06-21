@@ -259,36 +259,36 @@ PERIOD_PRESETS = {
         "label": "1 Tag (1. Juni)",
         "start": "2015-06-01",
         "end": "2015-06-01",
-        "preloaded": true,
-        "slow_hint": null
+        "preloaded": True,
+        "slow_hint": None
     },
     "3d": {
         "label": "3 Tage (1.–3. Juni)",
         "start": "2015-06-01",
         "end": "2015-06-03",
-        "preloaded": true,
-        "slow_hint": null
+        "preloaded": True,
+        "slow_hint": None
     },
     "7d": {
         "label": "1 Woche (1.–7. Juni)",
         "start": "2015-06-01",
         "end": "2015-06-07",
-        "preloaded": true,
-        "slow_hint": null
+        "preloaded": True,
+        "slow_hint": None
     },
     "14d": {
         "label": "2 Wochen (1.–14. Juni)",
         "start": "2015-06-01",
         "end": "2015-06-14",
-        "preloaded": true,
-        "slow_hint": null
+        "preloaded": True,
+        "slow_hint": None
     },
     "30d": {
         "label": "1 Monat (Juni 2015)",
         "start": "2015-06-01",
         "end": "2015-06-30",
-        "preloaded": true,
-        "slow_hint": null
+        "preloaded": True,
+        "slow_hint": None
     }
 }
 

@@ -170,7 +170,14 @@ def fetch_master_flights(cursor, start_date, end_date):
     return rows
 
 
-def write_flight_data(preloaded, presets):
+def to_python_literal(obj, indent=4):
+    """Erzeugt Python-kompatiblen Literal-Text (True/False/None statt JSON)."""
+    text = json.dumps(obj, indent=indent, ensure_ascii=False, default=str)
+    return (
+        text.replace(": true", ": True")
+        .replace(": false", ": False")
+        .replace(": null", ": None")
+    )
     week = preloaded.get("7d", {})
     underperforming = week.get("underperforming", [])
     best_performers = week.get("best", [])
@@ -184,15 +191,15 @@ Datenbank-Groesse: 462'553 Fluege, 54'304'619 Buchungen
 Extraktion: 1 Hauptabfrage (Juni), Zeitraeume per Filter abgeleitet
 """
 
-UNDERPERFORMING_FLIGHTS = {json.dumps(underperforming, indent=4, ensure_ascii=False, default=str)}
+UNDERPERFORMING_FLIGHTS = {to_python_literal(underperforming, indent=4)}
 
-BEST_PERFORMING_FLIGHTS = {json.dumps(best_performers, indent=4, ensure_ascii=False, default=str)}
+BEST_PERFORMING_FLIGHTS = {to_python_literal(best_performers, indent=4)}
 
-WEEKLY_STATS = {json.dumps(weekly_stats, indent=4, ensure_ascii=False, default=str)}
+WEEKLY_STATS = {to_python_literal(weekly_stats, indent=4)}
 
-PERIOD_PRESETS = {json.dumps(presets, indent=4, ensure_ascii=False, default=str)}
+PERIOD_PRESETS = {to_python_literal(presets, indent=4)}
 
-PRELOADED_PERIOD_DATA = {json.dumps(preloaded, indent=4, ensure_ascii=False, default=str)}
+PRELOADED_PERIOD_DATA = {to_python_literal(preloaded, indent=4)}
 
 EXTENDED_PERIOD_DATA = {{}}
 
