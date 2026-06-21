@@ -16,7 +16,8 @@ REQUIRED_PACKAGES = [
     ("python-dotenv", "dotenv"),
 ]
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_URL = "http://localhost:11434"
+OLLAMA_MODEL = "phi3"
 
 
 def check_python_version(min_major=3, min_minor=10):
@@ -46,17 +47,20 @@ def check_ollama_cli():
 def check_ollama_api():
     try:
         request = urllib.request.Request(
-            OLLAMA_URL,
-            data=json.dumps({"model": "phi3", "prompt": "Ping", "stream": False}).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
+            f"{OLLAMA_URL.rstrip('/')}/api/tags",
+            method="GET",
         )
         with urllib.request.urlopen(request, timeout=5) as response:
-            if response.status == 200:
-                return True, "Ollama API erreichbar"
-            return False, f"Unerwarteter HTTP-Status {response.status}"
+            if response.status != 200:
+                return False, f"Unerwarteter HTTP-Status {response.status}"
+            models = json.loads(response.read()).get("models", [])
+            names = {m.get("name", "").split(":")[0] for m in models}
+            if OLLAMA_MODEL.split(":")[0] not in names:
+                available = ", ".join(sorted(names)) or "keine"
+                return False, f"Modell '{OLLAMA_MODEL}' nicht gefunden. Verfuegbar: {available}"
+            return True, f"Ollama API erreichbar, Modell '{OLLAMA_MODEL}' geladen"
     except urllib.error.URLError as exc:
-        return False, str(exc)
+        return False, str(exc.reason if hasattr(exc, "reason") else exc)
     except Exception as exc:
         return False, str(exc)
 
@@ -91,7 +95,7 @@ def main():
     python_ok, python_version = check_python_version()
     print(f"Python-Version: {python_version}")
     if not python_ok:
-        print("  ⚠️ Benötigt wird mindestens Python 3.10.")
+        print("  [WARN] Benoetigt wird mindestens Python 3.10.")
 
     print("\nAbhängigkeiten prüfen:")
     package_results = check_packages()
@@ -104,25 +108,25 @@ def main():
     if cli_ok:
         print(f"  ollama CLI gefunden: {cli_path}")
     else:
-        print("  ⚠️ ollama CLI nicht gefunden. Bitte installieren Sie Ollama und stellen Sie sicher, dass der Befehl 'ollama' im PATH verfügbar ist.")
+        print("  [WARN] ollama CLI nicht gefunden. Bitte installieren Sie Ollama und stellen Sie sicher, dass der Befehl 'ollama' im PATH verfuegbar ist.")
 
     print("\nOllama-Service prüfen:")
     api_ok, api_message = check_ollama_api()
     if api_ok:
         print(f"  OK: {api_message}")
     else:
-        print(f"  ⚠️ Ollama-API nicht erreichbar: {api_message}")
-        print("    Stellen Sie sicher, dass Ollama lokal läuft.")
+        print(f"  [WARN] Ollama-API nicht erreichbar: {api_message}")
+        print("    Stellen Sie sicher, dass Ollama lokal laeuft.")
         print("    Modell laden: ollama pull phi3")
-        print("    Hinweis: Erste KI-Analyse kann 2–3 Minuten dauern (phi3 ist langsam auf CPU).")
+        print("    Hinweis: Erste KI-Analyse kann 2-3 Minuten dauern (phi3 ist langsam auf CPU).")
 
     print("\nDatenbank prüfen:")
     db_ok, db_message = check_database()
     if db_ok:
         print(f"  OK: {db_message}")
     else:
-        print(f"  ⚠️ Datenbankprüfung fehlgeschlagen: {db_message}")
-        print("    Bitte starten Sie den MySQL-Server und prüfen Sie die Zugangsdaten in der .env-Datei.")
+        print(f"  [WARN] Datenbankpruefung fehlgeschlagen: {db_message}")
+        print("    Bitte starten Sie den MySQL-Server und pruefen Sie die Zugangsdaten in der .env-Datei.")
 
     print("\nHinweis:")
     print("  - Installieren Sie die Python-Abhängigkeiten mit: python -m pip install -r requirements.txt")
@@ -133,12 +137,12 @@ def main():
     app_ready = python_ok and packages_ok
 
     if app_ready and api_ok and db_ok:
-        print("\n✅ Alle Checks bestanden (Python, Pakete, Ollama, Datenbank).")
+        print("\n[OK] Alle Checks bestanden (Python, Pakete, Ollama, Datenbank).")
         return 0
     if app_ready:
-        print("\n✅ App startbereit (Python + Pakete). Ollama/DB optional – siehe Hinweise oben.")
+        print("\n[OK] App startbereit (Python + Pakete). Ollama/DB optional - siehe Hinweise oben.")
         return 0
-    print("\n❌ Pflicht-Checks fehlgeschlagen. Bitte beheben Sie die oben genannten Probleme.")
+    print("\n[FEHLER] Pflicht-Checks fehlgeschlagen. Bitte beheben Sie die oben genannten Probleme.")
     return 1
 
 

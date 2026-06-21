@@ -203,6 +203,16 @@ def clear_data_cache():
             del st.session_state[key]
 
 
+def resolve_period_select_index(period_keys, session_key=None, default="7d"):
+    """Sicherer Selectbox-Index; ungueltige Session-Keys crashen nicht."""
+    if not period_keys:
+        return 0
+    requested = session_key or default
+    if requested not in period_keys:
+        requested = default if default in period_keys else period_keys[0]
+    return period_keys.index(requested)
+
+
 st.set_page_config(
     page_title="Flughafen Analyseplattform",
     page_icon="✈",
@@ -251,11 +261,15 @@ with st.sidebar:
             key: f"{preset['label']}{' ⚡' if preset.get('preloaded') else ''}"
             for key, preset in period_presets.items()
         }
+        period_keys = list(period_options.keys())
         selected_period = st.selectbox(
             "Beobachtungszeitraum",
-            options=list(period_options.keys()),
+            options=period_keys,
             format_func=lambda k: period_options[k],
-            index=list(period_options.keys()).index(st.session_state.get("current_period_key", "7d")),
+            index=resolve_period_select_index(
+                period_keys,
+                st.session_state.get("current_period_key"),
+            ),
         )
 
         preset = period_presets[selected_period]

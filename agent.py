@@ -23,9 +23,6 @@ MIN_EXTRA_PASSENGERS = 10
 
 try:
     from flight_data import (
-        get_underperforming_flights,
-        get_best_performing_flights,
-        get_weekly_stats,
         get_period_presets,
         get_period_data,
         is_period_preloaded,
@@ -236,16 +233,18 @@ class FlightOptimizationAgent:
             "best_flights": best_flights,
         }
 
+    def _extract_period_flights(self, period, limit=5):
+        if not HAS_EXTRACTED_DATA:
+            return None
+        period_data = get_period_data(period)
+        if period_data is None:
+            return None
+        return copy.deepcopy(period_data.get("underperforming", [])[:limit])
+
     def fetch_flight_data(self, period=None):
         period = period or self.current_period
-        period_data = get_period_data(period) if HAS_EXTRACTED_DATA else None
-
-        if period_data is not None:
-            flights = copy.deepcopy(period_data.get("underperforming", [])[:5])
-            return self._apply_local_optimizations(flights)
-
-        if HAS_EXTRACTED_DATA and is_period_preloaded(period):
-            flights = copy.deepcopy(get_underperforming_flights(limit=5))
+        flights = self._extract_period_flights(period, limit=5)
+        if flights is not None:
             return self._apply_local_optimizations(flights)
 
         flights = self._fetch_live_flights(period)
@@ -335,12 +334,6 @@ class FlightOptimizationAgent:
                 "best_flights": period_data.get("best", [])[:5],
             }
 
-        if HAS_EXTRACTED_DATA and is_period_preloaded(period):
-            return {
-                "weekly_stats": self._normalize_weekly_stats(get_weekly_stats()),
-                "best_flights": get_best_performing_flights(limit=5),
-            }
-
         return self._fetch_live_context(period)
 
     def needs_live_query(self, period=None):
@@ -427,8 +420,6 @@ class FlightOptimizationAgent:
 
         if period_data is not None:
             source_flights = period_data.get("underperforming", [])
-        elif HAS_EXTRACTED_DATA:
-            source_flights = get_underperforming_flights(limit=15)
 
         flight = next((f for f in source_flights if f["id"] == flight_id), None)
         if flight:
