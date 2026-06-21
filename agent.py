@@ -10,10 +10,7 @@ try:
 except ImportError:
     HAS_MYSQL = False
 
-DB_HOST = "localhost"
-DB_USER = "root"
-DB_PASSWORD = "Startup.6"
-DB_NAME = "flughafendb_large"
+from config import DB_HOST, DB_NAME, DB_PASSWORD, DB_USER
 
 OLLAMA_URL = "http://localhost:11434"
 OLLAMA_MODEL = "phi3"

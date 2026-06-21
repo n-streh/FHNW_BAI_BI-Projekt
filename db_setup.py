@@ -1,10 +1,7 @@
 import mysql.connector
 
-# MySQL Verbindungsdaten konfigurieren
-DB_HOST = "localhost"
-DB_USER = "root"
-DB_PASSWORD = "Startup.6"
-DB_NAME = "flughafendb_large"
+from config import DB_HOST, DB_NAME, DB_PASSWORD, DB_USER
+
 
 def check_database():
     try:
@@ -12,18 +9,18 @@ def check_database():
             host=DB_HOST,
             user=DB_USER,
             password=DB_PASSWORD,
-            database=DB_NAME
+            database=DB_NAME,
         )
         cursor = conn.cursor()
-        
+
         cursor.execute("SHOW TABLES")
         tables = [row[0] for row in cursor.fetchall()]
         print(f"Erfolgreich verbunden mit Datenbank: {DB_NAME}")
         print(f"Vorhandene Tabellen: {', '.join(tables)}")
-        
+
         required = ["flight", "booking", "airport", "airplane"]
         missing = [t for t in required if t not in tables]
-        
+
         if missing:
             print(f"Warnung: Folgende benötigte Tabellen fehlen: {', '.join(missing)}")
         else:
@@ -35,14 +32,15 @@ def check_database():
             flights = cursor.fetchone()[0]
             cursor.execute("SELECT COUNT(*) FROM booking")
             bookings = cursor.fetchone()[0]
-            
+
             print("Datenbankstruktur ist vollständig und bereit.")
             print(f"Statistiken: {airports} Flughäfen, {airplanes} Flugzeuge, {flights} Flüge, {bookings} Buchungen")
-            
+
         cursor.close()
         conn.close()
     except Exception as e:
         print(f"Fehler bei der Verbindung zur Datenbank: {e}")
+
 
 if __name__ == "__main__":
     check_database()

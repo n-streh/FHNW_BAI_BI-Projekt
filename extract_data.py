@@ -10,10 +10,7 @@ from datetime import datetime
 
 import mysql.connector
 
-DB_HOST = "localhost"
-DB_USER = "root"
-DB_PASSWORD = "Startup.6"
-DB_NAME = "flughafendb_large"
+from config import DB_HOST, DB_NAME, DB_PASSWORD, DB_USER
 
 MASTER_START = "2015-06-01"
 MASTER_END = "2015-06-30"

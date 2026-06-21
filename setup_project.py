@@ -6,11 +6,14 @@ import urllib.error
 
 import mysql.connector
 
+from config import DB_HOST, DB_NAME, DB_PASSWORD, DB_USER
+
 REQUIRED_PACKAGES = [
     ("streamlit", "streamlit"),
     ("pandas", "pandas"),
     ("mysql-connector-python", "mysql.connector"),
     ("plotly", "plotly"),
+    ("python-dotenv", "dotenv"),
 ]
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
@@ -59,18 +62,14 @@ def check_ollama_api():
 
 
 def check_database():
-    host = "localhost"
-    user = "root"
-    password = "Startup.6"
-    database = "flughafendb_large"
     required_tables = ["flight", "booking", "airport", "airplane"]
 
     try:
         conn = mysql.connector.connect(
-            host=host,
-            user=user,
-            password=password,
-            database=database,
+            host=DB_HOST,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME,
             connection_timeout=5,
         )
         cursor = conn.cursor()
@@ -81,7 +80,7 @@ def check_database():
         conn.close()
         if missing:
             return False, f"Datenbank verbunden, aber fehlende Tabellen: {', '.join(missing)}"
-        return True, f"Datenbank '{database}' erreichbar und Tabellen gefunden."
+        return True, f"Datenbank '{DB_NAME}' erreichbar und Tabellen gefunden."
     except Exception as exc:
         return False, str(exc)
 
@@ -123,11 +122,11 @@ def main():
         print(f"  OK: {db_message}")
     else:
         print(f"  ⚠️ Datenbankprüfung fehlgeschlagen: {db_message}")
-        print("    Bitte starten Sie den MySQL-Server und prüfen Sie die Zugangsdaten in agent.py / db_setup.py.")
+        print("    Bitte starten Sie den MySQL-Server und prüfen Sie die Zugangsdaten in der .env-Datei.")
 
     print("\nHinweis:")
     print("  - Installieren Sie die Python-Abhängigkeiten mit: python -m pip install -r requirements.txt")
-    print("  - Starten Sie ggf. die Datenbank und prüfen Sie die Konfiguration in agent.py/db_setup.py.")
+    print("  - Starten Sie ggf. die Datenbank und prüfen Sie die Konfiguration in der .env-Datei.")
     print("  - Die App läuft auch ohne DB/Ollama dank flight_data.py (regelbasierter Fallback).")
 
     packages_ok = all(available for _, available, _ in package_results)

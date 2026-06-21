@@ -10,6 +10,7 @@ from agent import (
     OLLAMA_TIMEOUT,
 )
 
+from config import DB_NAME
 from route_map import build_route_map, render_map_legend
 
 try:
@@ -280,7 +281,7 @@ with st.sidebar:
     period_info = agent.get_period_info()
     st.subheader("Datenquelle")
     st.caption(f"Zeitraum: {period_info.get('start')} – {period_info.get('end')}")
-    st.caption("DB: flughafendb_large · 54 Mio. Buchungen")
+    st.caption(f"DB: {DB_NAME} · 54 Mio. Buchungen")
 
     st.divider()
     ollama_ok, ollama_msg = agent.check_ollama_available()

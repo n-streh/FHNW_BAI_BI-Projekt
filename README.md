@@ -65,7 +65,10 @@ app.py  (Streamlit-Dashboard)
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+copy .env.example .env
 ```
+
+Neu erstellte env mit den eigenen Werten **aktualisieren**
 
 ### 2. Ollama einrichten
 
@@ -178,34 +181,32 @@ Damit wird `flight_data.py` neu erstellt. Eine Hauptabfrage für den gesamten Ju
 
 ---
 
-## Datenbank (optional)
+## Datenbank
 
 Für die Standard-Demo reicht der vorberechnete Datenauszug – **MySQL ist nicht zwingend nötig**. Für Live-Abfragen (Zeiträume ab 14 Tagen ohne Extrakt) oder zum Neuerzeugen des Datenauszugs wird eine Verbindung zur Referenzdatenbank benötigt.
 
-Zugangsdaten in `agent.py`, `db_setup.py` und `extract_data.py` anpassen:
+Zugangsdaten zentral in der **`.env`**-Datei anpassen (Vorlage: `.env.example`):
 
-| Variable | Standardwert |
-|----------|--------------|
-| `DB_HOST` | `localhost` |
-| `DB_USER` | `root` |
-| `DB_PASSWORD` | `Startup.6` |
-| `DB_NAME` | `flughafendb_large` |
+| Variable | Standardwert | Beschreibung |
+|----------|--------------|--------------|
+| `DB_HOST` | `localhost` | MySQL-Server |
+| `DB_USER` | `root` | Benutzername |
+| `DB_PASSWORD` | `Startup.6` | Passwort |
+| `DB_NAME` | `flughafendb_large` | Datenbankname |
+
+Alle Skripte (`agent.py`, `extract_data.py`, `db_setup.py`, `setup_project.py`) lesen diese Werte über `config.py`.
+
+Verbindung testen:
+
+```powershell
+python db_setup.py
+```
 
 Erforderliche Tabellen: `flight`, `booking`, `airport`, `airplane` (plus `airport_geo` für die Weltkarte).
 
 ---
 
-## Demo-Checkliste
 
-Vor einer Präsentation oder Abgabe:
-
-- [ ] `python setup_project.py` zeigt «App startbereit»
-- [ ] `ollama pull phi3` ausgeführt, Ollama läuft
-- [ ] `streamlit run app.py` öffnet Dashboard im Browser
-- [ ] Charts laden in Tab «Übersicht»
-- [ ] Weltkarte zeigt Routen in Tab «Weltkarte»
-- [ ] KI-Analyse einmal vorab gestartet (LLM «warm»)
-- [ ] Optimierung an einem Flug demonstriert (z. B. GE6237)
 
 ---
 
@@ -215,6 +216,8 @@ Vor einer Präsentation oder Abgabe:
 |-------|-------|
 | `app.py` | Streamlit-Dashboard |
 | `agent.py` | KPIs, KI-Analyse, Simulation |
+| `config.py` | Lädt DB-Zugangsdaten aus `.env` |
+| `.env.example` | Vorlage für die lokale Konfiguration |
 | `flight_data.py` | Vorberechneter Datenauszug |
 | `extract_data.py` | ETL-Skript für Datenauszug |
 | `route_map.py` | Weltkarten-Visualisierung |
