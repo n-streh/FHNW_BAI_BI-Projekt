@@ -107,7 +107,7 @@ Falls Sie den lokalen Datenauszug neu erzeugen möchten (inkl. Zeiträume 14d/30
 python extract_data.py
 ```
 
-Damit wird `flight_data.py` neu erstellt. Dieser Schritt benötigt eine funktionierende Verbindung zur Datenbank und kann bei 14d/30d mehrere Minuten dauern.
+Damit wird `flight_data.py` neu erstellt. **Optimierung:** Eine Hauptabfrage für den gesamten Juni; kürzere Zeiträume werden daraus per Filter abgeleitet (statt 5× separate DB-Queries). Fortschritt wird im Terminal angezeigt.
 
 ### Zeitraum-Filter
 
