@@ -271,3 +271,99 @@ def get_best_performing_flights(limit=5):
 def get_weekly_stats():
     """Gibt die Wochenstatistik zurueck."""
     return WEEKLY_STATS
+
+
+# --- Zeitraum-Filter (vorberechnete Presets) ---
+
+PERIOD_PRESETS = {
+    "1d": {
+        "label": "1 Tag (1. Juni)",
+        "start": "2015-06-01",
+        "end": "2015-06-01",
+        "preloaded": True,
+        "slow_hint": None,
+    },
+    "3d": {
+        "label": "3 Tage (1.–3. Juni)",
+        "start": "2015-06-01",
+        "end": "2015-06-03",
+        "preloaded": True,
+        "slow_hint": None,
+    },
+    "7d": {
+        "label": "1 Woche (1.–7. Juni)",
+        "start": "2015-06-01",
+        "end": "2015-06-07",
+        "preloaded": True,
+        "slow_hint": None,
+    },
+    "14d": {
+        "label": "2 Wochen (1.–14. Juni)",
+        "start": "2015-06-01",
+        "end": "2015-06-14",
+        "preloaded": False,
+        "slow_hint": "Live-Abfrage: ca. 1–3 Minuten",
+    },
+    "30d": {
+        "label": "1 Monat (Juni 2015)",
+        "start": "2015-06-01",
+        "end": "2015-06-30",
+        "preloaded": False,
+        "slow_hint": "Live-Abfrage: kann 3–5 Minuten dauern",
+    },
+}
+
+
+def _filter_by_date(flights, start, end):
+    return [f for f in flights if start <= f["departure_time"][:10] <= end]
+
+
+def _scale_stats(stats, factor):
+    return {
+        "total_flights": max(int(stats["total_flights"] * factor), 1),
+        "total_passengers": round(stats["total_passengers"] * factor, 1),
+        "avg_passengers_per_flight": stats["avg_passengers_per_flight"],
+        "avg_load_factor": stats["avg_load_factor"],
+    }
+
+
+def _build_period_data():
+    """Baut vorberechnete Zeitraeume aus dem Wochen-Extrakt (1d/3d/7d)."""
+    configs = [
+        ("1d", "2015-06-01", "2015-06-01", 1 / 7),
+        ("3d", "2015-06-01", "2015-06-03", 3 / 7),
+        ("7d", "2015-06-01", "2015-06-07", 1.0),
+    ]
+    data = {}
+    for key, start, end, factor in configs:
+        under = _filter_by_date(UNDERPERFORMING_FLIGHTS, start, end)
+        best = _filter_by_date(BEST_PERFORMING_FLIGHTS, start, end)
+        data[key] = {
+            "underperforming": under,
+            "best": best,
+            "stats": _scale_stats(WEEKLY_STATS, factor),
+        }
+    return data
+
+
+# Erweiterte Presets (14d/30d) – per extract_data.py befuellbar
+EXTENDED_PERIOD_DATA = {}
+
+PRELOADED_PERIOD_DATA = _build_period_data()
+
+
+def get_period_presets():
+    return PERIOD_PRESETS
+
+
+def is_period_preloaded(period_key):
+    preset = PERIOD_PRESETS.get(period_key, {})
+    if preset.get("preloaded"):
+        return True
+    return period_key in EXTENDED_PERIOD_DATA
+
+
+def get_period_data(period_key):
+    if period_key in EXTENDED_PERIOD_DATA:
+        return EXTENDED_PERIOD_DATA[period_key]
+    return PRELOADED_PERIOD_DATA.get(period_key)

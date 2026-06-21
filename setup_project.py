@@ -10,6 +10,7 @@ REQUIRED_PACKAGES = [
     ("streamlit", "streamlit"),
     ("pandas", "pandas"),
     ("mysql-connector-python", "mysql.connector"),
+    ("plotly", "plotly"),
 ]
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
@@ -112,8 +113,9 @@ def main():
         print(f"  OK: {api_message}")
     else:
         print(f"  ⚠️ Ollama-API nicht erreichbar: {api_message}")
-        print("    Stellen Sie sicher, dass Ollama lokal läuft und unter http://localhost:11434 erreichbar ist.")
-        print("    Beispiel: ollama serve oder ollama run phi3 --api")
+        print("    Stellen Sie sicher, dass Ollama lokal läuft.")
+        print("    Modell laden: ollama pull phi3")
+        print("    Hinweis: Erste KI-Analyse kann 2–3 Minuten dauern (phi3 ist langsam auf CPU).")
 
     print("\nDatenbank prüfen:")
     db_ok, db_message = check_database()
@@ -126,11 +128,18 @@ def main():
     print("\nHinweis:")
     print("  - Installieren Sie die Python-Abhängigkeiten mit: python -m pip install -r requirements.txt")
     print("  - Starten Sie ggf. die Datenbank und prüfen Sie die Konfiguration in agent.py/db_setup.py.")
+    print("  - Die App läuft auch ohne DB/Ollama dank flight_data.py (regelbasierter Fallback).")
 
-    if python_ok and all(available for _, available, _ in package_results) and api_ok and db_ok:
-        print("\n✅ Alle wichtigen Checks sind bestanden.")
+    packages_ok = all(available for _, available, _ in package_results)
+    app_ready = python_ok and packages_ok
+
+    if app_ready and api_ok and db_ok:
+        print("\n✅ Alle Checks bestanden (Python, Pakete, Ollama, Datenbank).")
         return 0
-    print("\n❌ Einige Checks sind fehlgeschlagen. Bitte beheben Sie die oben genannten Probleme.")
+    if app_ready:
+        print("\n✅ App startbereit (Python + Pakete). Ollama/DB optional – siehe Hinweise oben.")
+        return 0
+    print("\n❌ Pflicht-Checks fehlgeschlagen. Bitte beheben Sie die oben genannten Probleme.")
     return 1
 
 

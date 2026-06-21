@@ -78,20 +78,43 @@ Stellen Sie sicher, dass Ihr MySQL-Benutzer die Tabellen hat:
 
 ## Ollama
 
-Die KI-Analyse in `agent.py` verwendet die lokale Ollama-API unter `http://localhost:11434`.
+Die KI-Analyse in `agent.py` verwendet die lokale Ollama-API unter `http://localhost:11434` mit dem Modell **phi3**.
 
-- Wenn Sie Ollama nutzen möchten, starten Sie es lokal und stellen Sie sicher, dass es erreichbar ist.
-- Wenn Ollama nicht verfügbar ist, fällt das Projekt auf eine regelbasierte Analyse zurück.
+1. Ollama installieren: [https://ollama.com](https://ollama.com)
+2. Modell laden:
+
+```powershell
+ollama pull phi3
+```
+
+3. Ollama starten (läuft meist automatisch im Hintergrund):
+
+```powershell
+ollama serve
+```
+
+- Wenn Ollama nicht verfügbar ist, fällt das Projekt auf eine **regelbasierte Analyse** zurück.
+
+## Demo-Walkthrough
+
+Eine 5-Minuten-Anleitung für Dozierende finden Sie in [`DEMO.md`](DEMO.md).
 
 ## Datenextrakt aktualisieren
 
-Falls Sie den lokalen Datenauszug neu erzeugen möchten, nutzen Sie:
+Falls Sie den lokalen Datenauszug neu erzeugen möchten (inkl. Zeiträume 14d/30d):
 
 ```powershell
 python extract_data.py
 ```
 
-Damit wird `flight_data.py` neu erstellt. Dieser Schritt benötigt eine funktionierende Verbindung zur Datenbank.
+Damit wird `flight_data.py` neu erstellt. Dieser Schritt benötigt eine funktionierende Verbindung zur Datenbank und kann bei 14d/30d mehrere Minuten dauern.
+
+### Zeitraum-Filter
+
+| Zeitraum | Ladezeit | Quelle |
+|----------|----------|--------|
+| 1–7 Tage | Sofort | Vorberechnet in `flight_data.py` |
+| 14–30 Tage | Nach `extract_data.py`: sofort; sonst Live-DB (1–5 Min.) | Extrakt oder MySQL |
 
 ## Hinweise für die Abgabe
 
