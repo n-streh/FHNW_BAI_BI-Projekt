@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from agent import (
     FlightOptimizationAgent,
     PRICE_REDUCTION,
@@ -143,26 +144,56 @@ def build_benchmark_chart(df, weekly_avg_load):
     return apply_plotly_theme(fig, "Vergleich mit Zeitraum-Durchschnitt")
 
 
-def build_optimization_chart(original, optimized):
-    fig = go.Figure()
-    fig.add_trace(
-        go.Bar(
-            name="Vorher",
-            x=["Auslastung %", "Umsatz CHF", "Passagiere"],
-            y=[original["load_factor"], original["revenue"], original["passenger_count"]],
-            marker_color=CHART_COLORS["danger"],
-        )
+def build_optimization_chart(original, optimized, preview=False):
+    fig = make_subplots(
+        rows=1,
+        cols=3,
+        subplot_titles=("Auslastung %", "Umsatz CHF", "Passagiere"),
+        horizontal_spacing=0.08,
     )
-    fig.add_trace(
-        go.Bar(
-            name="Nachher (Simulation)",
-            x=["Auslastung %", "Umsatz CHF", "Passagiere"],
-            y=[optimized["load_factor"], optimized["revenue"], optimized["passenger_count"]],
-            marker_color=CHART_COLORS["success"],
+
+    chart_data = [
+        (original["load_factor"], optimized["load_factor"], "{:.1f}"),
+        (original["revenue"], optimized["revenue"], "{:,.0f}"),
+        (original["passenger_count"], optimized["passenger_count"], "{:d}"),
+    ]
+
+    for col, (before, after, fmt) in enumerate(chart_data, start=1):
+        fig.add_trace(
+            go.Bar(
+                name="Vorher",
+                x=["Vorher", "Nachher"],
+                y=[before, after],
+                marker_color=[CHART_COLORS["danger"], CHART_COLORS["success"]],
+                text=[fmt.format(before), fmt.format(after)],
+                textposition="outside",
+                showlegend=(col == 1),
+                legendgroup="simulation",
+            ),
+            row=1,
+            col=col,
         )
-    )
-    fig.update_layout(barmode="group", yaxis_title="Wert")
-    return apply_plotly_theme(fig, f"Simulation: Flug {original['flightno']}")
+
+    title_prefix = "Vorschau" if preview else "Simulation"
+    fig.update_layout(barmode="group", height=380, showlegend=True)
+    fig.update_yaxes(showgrid=True, gridcolor="#334155")
+    return apply_plotly_theme(fig, f"{title_prefix}: Flug {original['flightno']}")
+
+
+def refresh_flight_kpis(agent, period):
+    flights = agent.fetch_flight_data(period)
+    st.session_state.flights_with_kpis = agent.calculate_kpis(flights)
+
+
+def kpi_from_details(details, prefix):
+    suffix = "_before" if prefix == "before" else "_after"
+    load_key = "load_before" if prefix == "before" else "load_after"
+    return {
+        "flightno": details["flightno"],
+        "load_factor": details[load_key],
+        "revenue": details[f"revenue{suffix}"],
+        "passenger_count": details[f"passengers{suffix}"],
+    }
 
 
 def clear_data_cache():
@@ -417,7 +448,16 @@ try:
         )
 
         options = [f"{f['flightno']} – {f['route']}" for f in flights_with_kpis]
-        selected_idx = st.selectbox("Flug auswählen", range(len(options)), format_func=lambda i: options[i])
+        default_idx = st.session_state.get("optimization_flight_idx", 0)
+        default_idx = min(default_idx, len(options) - 1) if options else 0
+        selected_idx = st.selectbox(
+            "Flug auswählen",
+            range(len(options)),
+            format_func=lambda i: options[i],
+            index=default_idx,
+            key="optimization_flight_select",
+        )
+        st.session_state.optimization_flight_idx = selected_idx
         selected_id = flights_with_kpis[selected_idx]["id"]
         has_simulated = agent.is_flight_optimized(selected_id)
         details = agent.get_optimization_details(selected_id)
@@ -441,28 +481,43 @@ try:
                     f"({'+' if details['revenue_delta'] >= 0 else ''}{details['revenue_delta']:,.2f} CHF)"
                 )
 
+        if details:
+            original_kpi = kpi_from_details(details, "before")
+            optimized_kpi = kpi_from_details(details, "after")
+            st.plotly_chart(
+                build_optimization_chart(original_kpi, optimized_kpi, preview=not has_simulated),
+                use_container_width=True,
+            )
+
         c1, c2 = st.columns(2)
         with c1:
             if not has_simulated and st.button("Simulation starten", type="primary", use_container_width=True):
                 agent.optimize_flight(selected_id)
-                clear_data_cache()
+                refresh_flight_kpis(agent, period)
                 st.rerun()
         with c2:
             if has_simulated and st.button("Zurücksetzen", use_container_width=True):
                 agent.reset_flight(selected_id)
-                clear_data_cache()
+                refresh_flight_kpis(agent, period)
                 st.rerun()
 
         if has_simulated and details:
-            optimized_flight = next(f for f in agent.calculate_kpis(agent.fetch_flight_data()) if f["id"] == selected_id)
-            original_kpi = agent.calculate_kpis([agent.get_baseline_flight(selected_id)])[0]
-
-            st.plotly_chart(build_optimization_chart(original_kpi, optimized_flight), use_container_width=True)
-
             d1, d2, d3 = st.columns(3)
-            d1.metric("Auslastung", f"{optimized_flight['load_factor']:.1f} %", delta=f"{optimized_flight['load_factor'] - original_kpi['load_factor']:.1f} %")
-            d2.metric("Umsatz", f"{optimized_flight['revenue']:,.0f} CHF", delta=f"{optimized_flight['revenue'] - original_kpi['revenue']:,.0f} CHF")
-            d3.metric("Passagiere", optimized_flight["passenger_count"], delta=optimized_flight["passenger_count"] - original_kpi["passenger_count"])
+            d1.metric(
+                "Auslastung",
+                f"{details['load_after']:.1f} %",
+                delta=f"{details['load_after'] - details['load_before']:.1f} %",
+            )
+            d2.metric(
+                "Umsatz",
+                f"{details['revenue_after']:,.0f} CHF",
+                delta=f"{details['revenue_delta']:,.0f} CHF",
+            )
+            d3.metric(
+                "Passagiere",
+                details["passengers_after"],
+                delta=details["passengers_added"],
+            )
 
             st.markdown("**Angewendete Massnahmen:**")
             for step in details["steps"]:
